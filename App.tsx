@@ -1,20 +1,28 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import "react-native-get-random-values";
+import { StatusBar } from "expo-status-bar";
+import { NavigationContainer, DefaultTheme, Theme } from "@react-navigation/native";
+import RootNavigator from "./src/navigation/RootNavigator";
+import { palette } from "./src/theme/theme";
+
+const appTheme: Theme = {
+  ...DefaultTheme,
+  dark: true,
+  colors: {
+    ...DefaultTheme.colors,
+    background: palette.background,
+    card: palette.surface,
+    border: palette.surface,
+    text: palette.text,
+    primary: palette.primary,
+    notification: palette.accent,
+  },
+};
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+      <NavigationContainer theme={appTheme}>
+        <StatusBar style="light" />
+        <RootNavigator />
+      </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
