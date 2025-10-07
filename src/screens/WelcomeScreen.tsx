@@ -1,12 +1,19 @@
-import { View, Text } from "react-native";
+import { View, Text, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { palette, spacing, radius } from "../theme/theme";
+import { palette, spacing } from "../theme/theme";
 import Button from "../components/ui/Button";
+// 👇 Regeln einbinden
+import rules from "../data/rules_drunken_horse.json";
 
 export default function WelcomeScreen() {
     const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+    const showRules = () => {
+        const msg = (rules as any[]).map(r => `${r.icon ? r.icon + "  " : ""}${r.text}`).join("\n\n");
+        Alert.alert("Rules", msg, [{ text: "OK" }], { cancelable: true });
+    };
 
     return (
         <View style={{ flex:1, backgroundColor: palette.background, padding: spacing(3), justifyContent:"center" }}>
@@ -19,11 +26,11 @@ export default function WelcomeScreen() {
 
             <View style={{ gap: spacing(2) }}>
                 <Button title="Start Game" onPress={() => nav.navigate("Lobby")} />
-                <Button title="Rules" variant="secondary" onPress={() => nav.navigate("Rules" as any)} />
+                <Button title="Rules" variant="secondary" onPress={showRules} />
             </View>
 
             <Text style={{ color: palette.muted, textAlign:"center", marginTop: spacing(6), opacity: 0.8 }}>
-            DrunkenHorse © CodeChoreographer
+                DrunkenHorse © CodeChoreographer
             </Text>
         </View>
     );
