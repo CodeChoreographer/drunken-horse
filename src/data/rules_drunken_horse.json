@@ -1,0 +1,18 @@
+[
+  {
+    "icon": "🐎",
+    "text": "Four Aces are the horses. Each player bets on one suit and drinks their stake before the game."
+  },
+  {
+    "icon": "▶️",
+    "text": "Reveal a card: matching horse moves forward by 1. Bettor distributes their stake."
+  },
+  {
+    "icon": "↩️",
+    "text": "When all horses reach a sideline column, flip that card: matching horse moves back by 1; bettors drink their own stake."
+  },
+  {
+    "icon": "🏆",
+    "text": "First horse past the finish wins. Winners distribute 2× their stake; losers drink their stake."
+  }
+]

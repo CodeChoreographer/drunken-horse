@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, FlatList, Alert } from "react-native";
+import { View, Text, FlatList, Alert, Pressable } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
@@ -11,6 +11,8 @@ import Card from "../components/ui/Card";
 import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+// 👇 JSON-Regeln importieren
+import rules from "../data/rules_drunken_horse.json";
 
 const PLAYERS_KEY = "drunken-horse/players";
 
@@ -57,8 +59,19 @@ export default function LobbyScreen() {
     const removePlayer = (id: string) => setPlayers(prev => prev.filter(p => p.id !== id));
     const canContinue = players.length >= 2;
 
+    // 👉 Regeln anzeigen (gleich wie im GameScreen)
+    const showRules = () => {
+        const msg = (rules as any[]).map(r => `${r.icon ? r.icon + "  " : ""}${r.text}`).join("\n\n");
+        Alert.alert("Rules", msg, [{ text: "OK" }], { cancelable: true });
+    };
+
     return (
         <View style={{ flex: 1, backgroundColor: palette.background, padding: spacing(3) }}>
+            {/* 📜 oben rechts */}
+            <View style={{ position: "absolute", top: spacing(2), right: spacing(2), zIndex: 5 }}>
+                <TinyIconButton label="📜" onPress={showRules} />
+            </View>
+
             <Text style={{ color: palette.text, fontSize: 28, fontWeight: "800", marginBottom: spacing(1) }}>
                 Player Lobby
             </Text>
@@ -116,5 +129,21 @@ export default function LobbyScreen() {
                 <Button title="Back" variant="secondary" onPress={() => nav.goBack()} />
             </View>
         </View>
+    );
+}
+
+function TinyIconButton({ label, onPress }: { label: string; onPress: () => void }) {
+    return (
+        <Pressable
+            onPress={onPress}
+            style={{
+                width: 36, height: 36, borderRadius: 18,
+                backgroundColor: "rgba(255,255,255,0.12)",
+                alignItems: "center", justifyContent: "center", marginTop: 15,
+            }}
+            hitSlop={10}
+        >
+            <Text style={{ fontSize: 18 }}>{label}</Text>
+        </Pressable>
     );
 }
