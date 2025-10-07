@@ -1,23 +1,47 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, FlatList, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
+import type { Player } from "../types/game";
 import { palette, spacing } from "../theme/theme";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Card from "../components/ui/Card";
-
-// UUID-Import (nach Installation von uuid + react-native-get-random-values)
 import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type Player = { id: string; name: string };
+const PLAYERS_KEY = "drunken-horse/players";
 
 export default function LobbyScreen() {
     const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const [name, setName] = useState("");
     const [players, setPlayers] = useState<Player[]>([]);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const raw = await AsyncStorage.getItem(PLAYERS_KEY);
+                if (raw) {
+                    const saved = JSON.parse(raw) as Player[];
+                    setPlayers(Array.isArray(saved) ? saved : []);
+                }
+            } catch (e) {
+                console.warn("failed to load players", e);
+            }
+        })();
+    }, []);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                await AsyncStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
+            } catch (e) {
+                console.warn("failed to save players", e);
+            }
+        })();
+    }, [players]);
 
     const addPlayer = () => {
         const trimmed = name.trim();
@@ -42,7 +66,7 @@ export default function LobbyScreen() {
                 Add at least two players to continue.
             </Text>
 
-            <Card style={{ marginBottom: spacing(2) }}>
+            <Card style={{ marginBottom: spacing(2), gap: spacing(1) }}>
                 <Input
                     placeholder="Enter player name"
                     value={name}
@@ -85,8 +109,7 @@ export default function LobbyScreen() {
                     title="Continue"
                     onPress={() => {
                         if (!canContinue) return;
-                        Alert.alert("Ready", "Next: Bet Selection (we’ll wire it next).");
-                        // nav.navigate("Bet");
+                        nav.navigate("Bet", { players });
                     }}
                     disabled={!canContinue}
                 />
