@@ -5,10 +5,10 @@ export const palette = {
     surface: "#2a2a2a",    // Karten/Paneel-Flächen
     text: "#ffffff",       // Standard-Text auf dunkel
     muted: "#9aa0a6",      // Sekundärtext / Labels
-    danger: "#FF0000",     // Destruktiv/Fehler
+    danger: "#FF0000",     // Fehler/Warnung
 };
 
-// Einheitliches Spacing (8px-Raster)
+// Einheitliches Spacing
 export const spacing = (n: number) => n * 8;
 
 // Optionale Radius-/Schatten-Tokens (für konsistente UI)
