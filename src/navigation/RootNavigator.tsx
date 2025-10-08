@@ -4,7 +4,8 @@ import LobbyScreen from "../screens/LobbyScreen";
 import BetSelectionScreen from "../screens/BetSelectionScreen";
 import ConfirmBetsScreen from "../screens/ConfirmBetsScreen";
 import GameScreen from "../screens/GameScreen";
-import {Player, Bet } from "../types/game";
+import WinnerScreen from "../screens/WinnerScreen";
+import {Player, Bet, Suit} from "../types/game";
 
 export type RootStackParamList = {
     Welcome: undefined;
@@ -12,6 +13,7 @@ export type RootStackParamList = {
     Bet: { players: Player[]; initialBets?: Bet[] };
     Confirm: { players: Player[]; bets: Bet[] };
     Game: { players: Player[]; bets: Bet[] };
+    Winner: { players: Player []; bets: Bet[], winningSuit: Suit };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -22,8 +24,9 @@ export default function RootNavigator() {
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Lobby" component={LobbyScreen} />
             <Stack.Screen name="Bet" component={BetSelectionScreen} />
-            <Stack.Screen name="Game" component={GameScreen} />
             <Stack.Screen name="Confirm" component={ConfirmBetsScreen} />
+            <Stack.Screen name="Game" component={GameScreen} />
+            <Stack.Screen name="Winner" component={WinnerScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
     );
 }
