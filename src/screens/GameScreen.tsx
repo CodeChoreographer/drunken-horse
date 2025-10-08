@@ -128,7 +128,6 @@ export default function GameScreen() {
             if (copy[idx]) copy[idx] = { ...copy[idx], faceUp: true };
             return copy;
         });
-        Alert.alert("Sideline", `${SUIT_SYMBOL[sc.suit]} moves back 1!`, [{ text: "OK" }]);
         setPositions((prev) => {
             const val = Math.max(0, (prev[sc.suit] ?? 0) - 1);
             const next = { ...prev, [sc.suit]: val };
@@ -176,12 +175,7 @@ export default function GameScreen() {
             const winner = (Object.keys(nextPositions) as Suit[]).find((s) => nextPositions[s] >= TRACK_LENGTH);
             if (winner) {
                 setFinished(true);
-                setTimeout(() => {
-                    Alert.alert(`${SUIT_SYMBOL[winner]} wins!`, "Start a new round or go back to lobby?", [
-                        { text: "New Round", onPress: () => resetRace() },
-                        { text: "Back to Lobby", style: "destructive", onPress: () => navigation.navigate("Lobby") },
-                    ]);
-                }, 10);
+                navigation.navigate("Winner", { players, bets, winningSuit: winner });
             }
         } catch {
             Alert.alert("Network error", "Could not draw a card.");
