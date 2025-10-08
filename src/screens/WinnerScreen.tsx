@@ -39,7 +39,7 @@ export default function WinnerScreen() {
     const losers  = bets.filter(b => b.suit !== winningSuit);
 
     return (
-        <View style={{ flex: 1, backgroundColor: palette.background, padding: spacing(3) }}>
+        <View style={{ flex: 1, backgroundColor: palette.background, padding: spacing(3), marginTop: spacing(2) }}>
             <ScrollView contentContainerStyle={{ paddingBottom: spacing(3) }}>
                 <Card
                     style={{
@@ -93,7 +93,7 @@ export default function WinnerScreen() {
                 </Card>
             </ScrollView>
 
-            <View style={{ gap: spacing(2), marginBottom: spacing(2) }}>
+            <View style={{ gap: spacing(2), marginBottom: spacing(4) }}>
                 <Button
                     title="New round"
                     onPress={() => {

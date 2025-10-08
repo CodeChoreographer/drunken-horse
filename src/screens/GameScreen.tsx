@@ -7,6 +7,7 @@ import {
     Animated,
     LayoutChangeEvent,
     Pressable,
+    ImageSourcePropType,
 } from "react-native";
 import { Accelerometer } from "expo-sensors";
 import { useRoute, useNavigation } from "@react-navigation/native";
@@ -16,6 +17,10 @@ import type { Player, Bet, Suit } from "../types/game";
 import { palette, spacing } from "../theme/theme";
 import Button from "../components/ui/Button";
 import rules from "../data/rules_drunken_horse.json";
+// für lokales Deck
+import { generateDeck } from "../types/cards";
+import { shuffle } from "../utils/shuffle";
+import { getImageByCode } from "../assets/cardImages";
 
 // Suits
 const SUIT_ORDER: Suit[] = ["HEARTS", "DIAMONDS", "CLUBS", "SPADES"];
@@ -38,18 +43,30 @@ const SHAKE_COOLDOWN_MS = 1000;
 
 const CARD_BACK = require("../../assets/card-back-orange.png");
 
-type DrawnCard = { suit: Suit; imageUrl: string };
-type SideCard = { suit: Suit; imageUrl: string; faceUp: boolean; flip: Animated.Value };
+// Bildquellen vereinheitlichen (API-URI oder lokales require)
+type DrawnCard = { suit: Suit; imageSource: ImageSourcePropType };
+type SideCard  = { suit: Suit; rank: string; imageSource: ImageSourcePropType; faceUp: boolean; flip: Animated.Value };
+
+// Hilfsfunktion: lokales Bild aus Suit+Rank (A,2..K)
+const suitShort: Record<Suit, "S" | "H" | "D" | "C"> = {
+    SPADES: "S",
+    HEARTS: "H",
+    DIAMONDS: "D",
+    CLUBS: "C",
+};
+const localImageFor = (suit: Suit, rank: string): ImageSourcePropType =>
+    getImageByCode(`${rank}${suitShort[suit]}`);
 
 export default function GameScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const route = useRoute();
     const { players, bets } = route.params as { players: Player[]; bets: Bet[] };
 
-    // Deck & ziehen
-    const [deckId, setDeckId] = useState<string | null>(null);
-    const [isDrawing, setIsDrawing] = useState(false);
-    const [finished, setFinished] = useState(false);
+    // Modus/Deck-Verwaltung
+    const [mode, setMode] = useState<"api" | "local">("api");
+    const [deckId, setDeckId] = useState<string | null>(null);              // nur für API-Modus
+    const [localDeck, setLocalDeck] = useState<{ suit: Suit; rank: string }[]>([]); // lokales Deck
+    const [localIdx, setLocalIdx] = useState(0);
 
     // Rennzustand
     const [positions, setPositions] = useState<Record<Suit, number>>({
@@ -74,33 +91,77 @@ export default function GameScreen() {
     const [sideline, setSideline] = useState<SideCard[]>([]);
     const [laneWidth, setLaneWidth] = useState(0);
 
-    // Deck initialisieren + 7 Sideline-Karten vorziehen
+    // Deck initialisieren + Sideline laden (API → Fallback lokal)
     const initDeckWithSideline = useCallback(async () => {
-        const newDeckRes = await fetch("https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1");
-        const newDeck = await newDeckRes.json();
-        const id = newDeck.deck_id as string;
+        try {
+            // ONLINE: frisches API-Deck + 7 Karten für die Sideline
+            const newDeckRes = await fetch("https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1");
+            const newDeck = await newDeckRes.json();
+            const id = newDeck.deck_id as string;
 
-        const drawRes = await fetch(`https://deckofcardsapi.com/api/deck/${id}/draw/?count=${SIDELINE_COUNT}`);
-        const drawJson = await drawRes.json();
-        let cards = drawJson.cards;
-        if (!cards?.length || cards.length < SIDELINE_COUNT) {
-            await fetch(`https://deckofcardsapi.com/api/deck/${id}/shuffle/`);
-            const drawRes2 = await fetch(`https://deckofcardsapi.com/api/deck/${id}/draw/?count=${SIDELINE_COUNT}`);
-            const drawJson2 = await drawRes2.json();
-            cards = drawJson2.cards;
+            const drawRes = await fetch(`https://deckofcardsapi.com/api/deck/${id}/draw/?count=${SIDELINE_COUNT}`);
+            const drawJson = await drawRes.json();
+            let cards = drawJson.cards;
+
+            if (!cards?.length || cards.length < SIDELINE_COUNT) {
+                await fetch(`https://deckofcardsapi.com/api/deck/${id}/shuffle/`);
+                const drawRes2 = await fetch(`https://deckofcardsapi.com/api/deck/${id}/draw/?count=${SIDELINE_COUNT}`);
+                cards = (await drawRes2.json()).cards;
+            }
+
+            const rankMap: Record<string, string> = { ACE: "A", KING: "K", QUEEN: "Q", JACK: "J" };
+            const side: SideCard[] = (cards ?? []).slice(0, SIDELINE_COUNT).map((c: any) => {
+                const rank = rankMap[c.value?.toUpperCase()] ?? c.value; // "A","2"..,"K"
+                const suit = (c.suit as string).toUpperCase() as Suit;
+                return {
+                    suit,
+                    rank,
+                    imageSource: { uri: c.image as string },
+                    faceUp: false,
+                    flip: new Animated.Value(0),
+                };
+            });
+
+
+            setDeckId(id);
+            setMode("api");
+            setSideline(side);
+            setLocalDeck([]);
+            setLocalIdx(0);
+        } catch {
+            // OFFLINE: lokales Deck + lokale Bilder
+            const deck = shuffle(generateDeck());
+            const sideLocal: SideCard[] = deck.slice(0, SIDELINE_COUNT).map((c) => ({
+                suit: c.suit,
+                rank: c.rank,
+                imageSource: localImageFor(c.suit, c.rank),
+                faceUp: false,
+                flip: new Animated.Value(0),
+            }));
+
+            setDeckId(null);
+            setMode("local");
+            setSideline(sideLocal);
+            setLocalDeck(deck.slice(SIDELINE_COUNT)); // Rest bleibt zum Ziehen
+            setLocalIdx(0);
         }
-        const side: SideCard[] = (cards ?? []).slice(0, SIDELINE_COUNT).map((c: any) => ({
-            suit: c.suit as Suit, imageUrl: c.image as string, faceUp: false, flip: new Animated.Value(0),
-        }));
-
-        setDeckId(id);
-        setSideline(side);
     }, []);
 
     useEffect(() => {
         (async () => {
             try { await initDeckWithSideline(); }
-            catch { Alert.alert("Network error", "Could not initialize the deck."); }
+            catch {
+                // wenn hier etwas schiefgeht, fallbacken wir nochmal sicherheitshalber lokal
+                const deck = shuffle(generateDeck());
+                const sideLocal: SideCard[] = deck.slice(0, SIDELINE_COUNT).map((c) => ({
+                    suit: c.suit, rank: c.rank, imageSource: localImageFor(c.suit, c.rank), faceUp: false, flip: new Animated.Value(0),
+                }));
+                setDeckId(null);
+                setMode("local");
+                setSideline(sideLocal);
+                setLocalDeck(deck.slice(SIDELINE_COUNT));
+                setLocalIdx(0);
+            }
         })();
     }, [initDeckWithSideline]);
 
@@ -136,52 +197,111 @@ export default function GameScreen() {
         });
     }, []);
 
-    // Karte ziehen (Button/Shake)
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [finished, setFinished] = useState(false);
+
+    // Karte ziehen (Button/Shake) – mit Auto-Failover: API → lokal
     const drawCard = useCallback(async () => {
-        if (!deckId || isDrawing || finished) return;
+        if (isDrawing || finished) return;
         setIsDrawing(true);
         try {
-            const j = await (async () => {
-                const r = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=1`);
-                const jj = await r.json();
-                if (jj.success && jj.cards?.length) return jj;
-                await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/shuffle/`);
-                const r2 = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=1`);
-                return await r2.json();
-            })();
+            if (mode === "api" && deckId) {
+                // ONLINE: API ziehen
+                const j = await (async () => {
+                    const r = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=1`);
+                    const jj = await r.json();
+                    if (jj.success && jj.cards?.length) return jj;
+                    await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/shuffle/`);
+                    const r2 = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=1`);
+                    return await r2.json();
+                })();
 
-            const card = j.cards?.[0];
-            const suit = card?.suit as Suit | undefined;
-            if (!suit) return;
+                const card = j.cards?.[0];
+                const suit = (card?.suit as string | undefined)?.toUpperCase() as Suit | undefined;
+                if (!suit) return;
 
-            setLastCard({ suit, imageUrl: card.image });
-            fadeInCard();
+                setLastCard({ suit, imageSource: { uri: card.image as string } });
+                fadeInCard();
 
-            const cur = positions;
-            const nextVal = Math.min((cur[suit] ?? 0) + 1, TRACK_LENGTH);
-            const nextPositions: Record<Suit, number> = { ...cur, [suit]: nextVal };
-            setPositions(nextPositions);
-            animateMarkerTo(suit, nextVal);
+                // Fortschritt
+                setPositions((cur) => {
+                    const nextVal = Math.min((cur[suit] ?? 0) + 1, TRACK_LENGTH);
+                    const nextPositions: Record<Suit, number> = { ...cur, [suit]: nextVal };
+                    animateMarkerTo(suit, nextVal);
 
-            // Sideline: kleinste reife Spalte flippen
-            let readyIdx = -1;
-            for (let c = 1; c <= SIDELINE_COUNT; c++) {
-                const idx = c - 1;
-                if (!sideline[idx]?.faceUp && isColumnReady(c, nextPositions)) { readyIdx = idx; break; }
-            }
-            if (readyIdx >= 0) flipAndRetreat(readyIdx, sideline[readyIdx]);
+                    // Sideline: kleinste reife Spalte flippen
+                    let readyIdx = -1;
+                    for (let c = 1; c <= SIDELINE_COUNT; c++) {
+                        const idx = c - 1;
+                        if (!sideline[idx]?.faceUp && isColumnReady(c, nextPositions)) { readyIdx = idx; break; }
+                    }
+                    if (readyIdx >= 0) flipAndRetreat(readyIdx, sideline[readyIdx]);
 
-            const winner = (Object.keys(nextPositions) as Suit[]).find((s) => nextPositions[s] >= TRACK_LENGTH);
-            if (winner) {
-                setFinished(true);
-                navigation.navigate("Winner", { players, bets, winningSuit: winner });
+                    const winner = (Object.keys(nextPositions) as Suit[]).find((s) => nextPositions[s] >= TRACK_LENGTH);
+                    if (winner) {
+                        setFinished(true);
+                        navigation.navigate("Winner", { players, bets, winningSuit: winner });
+                    }
+                    return nextPositions;
+                });
+            } else {
+                // OFFLINE: lokal ziehen
+                const c = localDeck[localIdx];
+                if (!c) return; // Deckende (kommt praktisch nicht vor)
+                setLastCard({ suit: c.suit, imageSource: localImageFor(c.suit, c.rank) });
+                fadeInCard();
+
+                setPositions((cur) => {
+                    const nextVal = Math.min((cur[c.suit] ?? 0) + 1, TRACK_LENGTH);
+                    const nextPositions: Record<Suit, number> = { ...cur, [c.suit]: nextVal };
+                    animateMarkerTo(c.suit, nextVal);
+
+                    let readyIdx = -1;
+                    for (let col = 1; col <= SIDELINE_COUNT; col++) {
+                        const idx = col - 1;
+                        if (!sideline[idx]?.faceUp && isColumnReady(col, nextPositions)) { readyIdx = idx; break; }
+                    }
+                    if (readyIdx >= 0) flipAndRetreat(readyIdx, sideline[readyIdx]);
+
+                    const winner = (Object.keys(nextPositions) as Suit[]).find((s) => nextPositions[s] >= TRACK_LENGTH);
+                    if (winner) {
+                        setFinished(true);
+                        navigation.navigate("Winner", { players, bets, winningSuit: winner });
+                    }
+                    return nextPositions;
+                });
+
+                setLocalIdx((i) => i + 1);
             }
         } catch {
-            Alert.alert("Network error", "Could not draw a card.");
+            // ➜ Mitten im Spiel Netz weg oder API down → sofort auf lokal umschalten
+            const deck = shuffle(generateDeck());
+
+            // Sideline-Frontbilder auf lokale Assets umstellen (Suit passt optisch)
+            setSideline((prev) =>
+                prev.map((sc) => ({ ...sc, imageSource: localImageFor(sc.suit, sc.rank ?? "A") }))
+            );
+
+            setMode("local");
+            setDeckId(null);
+            setLocalDeck(deck);
+            setLocalIdx(0);
+
+            // direkt eine lokale Karte ziehen, damit der Flow nicht abreisst
+            const c = deck[0];
+            setLastCard({ suit: c.suit, imageSource: localImageFor(c.suit, c.rank) });
+            fadeInCard();
+            setPositions((cur) => {
+                const nextVal = Math.min((cur[c.suit] ?? 0) + 1, TRACK_LENGTH);
+                const next = { ...cur, [c.suit]: nextVal };
+                animateMarkerTo(c.suit, nextVal);
+                return next;
+            });
+            setLocalIdx(1);
         } finally {
             setIsDrawing(false);
         }
-    }, [deckId, isDrawing, finished, positions, sideline, fadeInCard, navigation, resetRace, flipAndRetreat]);
+    }, [mode, deckId, isDrawing, finished, localDeck, localIdx, sideline, navigation, players, bets, fadeInCard, flipAndRetreat]);
 
     // Shake-to-Draw
     const lastShake = useRef(0);
@@ -220,12 +340,11 @@ export default function GameScreen() {
                 <TinyIconButton label="📜" onPress={showRules} />
             </View>
 
-            {/* Top: Karte (Platzhalter = Rücken), dann Button */}
             <View style={{ alignItems: "center", marginBottom: spacing(3), marginTop: spacing(6), gap: spacing(2) }}>
                 <View style={{ width: TOP_CARD_W, height: TOP_CARD_H, borderRadius: 10, overflow: "hidden" }}>
                     {lastCard ? (
                         <Animated.Image
-                            source={{ uri: lastCard.imageUrl }}
+                            source={lastCard.imageSource}
                             style={{
                                 width: "100%", height: "100%", opacity: cardFade,
                                 transform: [{ translateY: cardFade.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
@@ -238,11 +357,10 @@ export default function GameScreen() {
                 </View>
 
                 <View style={{ width: "100%" }}>
-                    <Button title="Draw Card" onPress={drawCard} disabled={!deckId || isDrawing || finished} />
+                    <Button title={`Draw Card ${mode === "api" ? "🌐" : "📴"}`} onPress={drawCard} disabled={isDrawing || finished} />
                 </View>
             </View>
 
-            {/* Spielbrett: Lanes + Rail unten */}
             <View
                 style={{ flex: 1, position: "relative", paddingBottom: RAIL_HEIGHT }}
                 onLayout={(e: LayoutChangeEvent) => setLaneWidth(e.nativeEvent.layout.width)}
@@ -347,7 +465,7 @@ function SidelineRail({
                                 opacity: frontOpacity, transform: [{ rotateY: "180deg" }],
                             }}
                         >
-                            <Image source={{ uri: sc.imageUrl }} style={{ width: "100%", height: "100%" }} />
+                            <Image source={sc.imageSource} style={{ width: "100%", height: "100%" }} />
                         </Animated.View>
                     </Animated.View>
                 );

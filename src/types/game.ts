@@ -1,4 +1,3 @@
-// Pferde
 export type Suit = "HEARTS" | "DIAMONDS" | "CLUBS" | "SPADES";
 
 export type Player = {

@@ -26,6 +26,11 @@
     },
     "web": {
       "favicon": "./assets/DrunkenHorse_Icon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c9afa569-09d1-4310-af82-6098884a05f9"
+      }
     }
   }
 }

@@ -143,7 +143,7 @@ export default function BetSelectionScreen() {
                     alignItems: "center",
                     justifyContent: "center",
                     gap: spacing(2),
-                    paddingBottom: spacing(2),
+                    paddingBottom: spacing(4),
                 }}
             >
                 <View style={{ width: "100%" }}>
