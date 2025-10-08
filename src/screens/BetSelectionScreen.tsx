@@ -146,14 +146,14 @@ export default function BetSelectionScreen() {
                     paddingBottom: spacing(2),
                 }}
             >
-                <View style={{ width: "70%" }}>
+                <View style={{ width: "100%" }}>
                     <Button
                         title={idx < players.length - 1 ? "Next" : "Review Bets"}
                         onPress={goNext}
                         disabled={!canNext}
                     />
                 </View>
-                <View style={{ width: "70%" }}>
+                <View style={{ width: "100%" }}>
                     <Button title="Back" variant="secondary" onPress={goBack} />
                 </View>
             </View>

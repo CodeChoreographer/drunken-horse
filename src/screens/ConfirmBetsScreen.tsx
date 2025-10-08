@@ -8,12 +8,12 @@ import { palette, spacing } from "../theme/theme";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 
-const suitLabel = (s: Suit) => ({
-    HEARTS: "Hearts",
-    DIAMONDS: "Diamonds",
-    CLUBS: "Clubs",
-    SPADES: "Spades",
-}[s]);
+const SUIT_SYMBOL: Record<Suit, string> = {
+    HEARTS: "♥",
+    DIAMONDS: "♦",
+    CLUBS: "♣",
+    SPADES: "♠",
+};
 
 export default function ConfirmBetsScreen() {
     const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -23,7 +23,7 @@ export default function ConfirmBetsScreen() {
     const betById = new Map(bets.map(b => [b.playerId, b]));
 
     return (
-        <View style={{ flex: 1, backgroundColor: palette.background, padding: spacing(3) }}>
+        <View style={{ flex: 1, backgroundColor: palette.background, padding: spacing(3), marginTop: spacing(4) }}>
             <Text style={{ color: "#fff", opacity: 0.9, marginBottom: spacing(2) }}>
                 Confirm that each player has set their sips.
             </Text>
@@ -32,28 +32,41 @@ export default function ConfirmBetsScreen() {
                 data={players}
                 keyExtractor={(p) => p.id}
                 contentContainerStyle={{ gap: spacing(2), paddingBottom: spacing(3) }}
-                renderItem={({ item, index }) => {
+                renderItem={({ item }) => {
                     const b = betById.get(item.id)!;
                     return (
                         <Card style={{ paddingVertical: spacing(2), borderRadius: 20 }}>
-                            <Text style={{ color: palette.primary, fontWeight: "800", marginBottom: spacing(1) }}>
-                                Player {index + 1}
+                            {/* Spielername */}
+                            <Text
+                                style={{
+                                    color: palette.primary,
+                                    fontWeight: "800",
+                                    marginBottom: spacing(1),
+                                }}
+                            >
+                                {item.name}
                             </Text>
-                            <Text style={{ color: "#fff" }}>Suit: {suitLabel(b.suit)}</Text>
-                            <Text style={{ color: "#fff" }}>Sips: {b.sips}</Text>
+
+                            {/* Suit-Symbol + Sips */}
+                            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                                <Text style={{ color: "#fff", fontSize: 18 }}>
+                                    {SUIT_SYMBOL[b.suit]}
+                                </Text>
+                                <Text style={{ color: "#fff" }}>Sips: {b.sips}</Text>
+                            </View>
                         </Card>
                     );
                 }}
             />
 
             <View style={{ marginTop: "auto", alignItems: "center", gap: spacing(2), paddingBottom: spacing(2) }}>
-                <View style={{ width: "70%" }}>
+                <View style={{ width: "100%" }}>
                     <Button
                         title="Start Game"
                         onPress={() => nav.navigate("Game", { players, bets })}
                     />
                 </View>
-                <View style={{ width: "70%" }}>
+                <View style={{ width: "100%" }}>
                     <Button
                         title="Back"
                         variant="secondary"

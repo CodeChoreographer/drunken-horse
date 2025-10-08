@@ -26,15 +26,15 @@ const SUIT_COLOR: Record<Suit, string> = { HEARTS: "#E53935", DIAMONDS: "#E53935
 const TRACK_LENGTH = 8;                 // 8 Felder ⇒ 7 Zwischenkarten
 const SIDELINE_COUNT = TRACK_LENGTH - 1;
 const TRACK_HEIGHT = 28;
-const MARKER_SIZE = 26;
-const MARKER_BOX = 30;
-const RAIL_HEIGHT = 84;                 // Karten-Schiene unten
-const TOP_CARD_W = 140;                 // fixe Fläche oben (verhindert Layout-Shift)
+const MARKER_SIZE = 30;
+const MARKER_BOX = 35;
+const RAIL_HEIGHT = 84;
+const TOP_CARD_W = 140;
 const TOP_CARD_H = 196;
 
 // Shake Einstellungen
-const SHAKE_THRESHOLD_G = 1.4;
-const SHAKE_COOLDOWN_MS = 800;
+const SHAKE_THRESHOLD_G = 3.4;
+const SHAKE_COOLDOWN_MS = 1000;
 
 const CARD_BACK = require("../../assets/card-back-orange.png");
 
@@ -171,7 +171,6 @@ export default function GameScreen() {
             }
             if (readyIdx >= 0) flipAndRetreat(readyIdx, sideline[readyIdx]);
 
-            // Winner?
             const winner = (Object.keys(nextPositions) as Suit[]).find((s) => nextPositions[s] >= TRACK_LENGTH);
             if (winner) {
                 setFinished(true);
@@ -216,7 +215,7 @@ export default function GameScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: palette.background, padding: spacing(3) }}>
-            <View style={{ position: "absolute", top: spacing(6), left: spacing(2), right: spacing(2), zIndex: 5, flexDirection: "row", justifyContent: "space-between" }}>
+            <View style={{ position: "absolute", top: spacing(4), left: spacing(2), right: spacing(2), zIndex: 5, flexDirection: "row", justifyContent: "space-between" }}>
                 <TinyIconButton label="🏠" onPress={confirmBackHome} />
                 <TinyIconButton label="📜" onPress={showRules} />
             </View>
@@ -238,7 +237,7 @@ export default function GameScreen() {
                     )}
                 </View>
 
-                <View style={{ width: "60%" }}>
+                <View style={{ width: "100%" }}>
                     <Button title="Draw Card" onPress={drawCard} disabled={!deckId || isDrawing || finished} />
                 </View>
             </View>
@@ -248,7 +247,7 @@ export default function GameScreen() {
                 style={{ flex: 1, position: "relative", paddingBottom: RAIL_HEIGHT }}
                 onLayout={(e: LayoutChangeEvent) => setLaneWidth(e.nativeEvent.layout.width)}
             >
-                <View style={{ gap: spacing(2) }}>
+                <View style={{ gap: spacing(6) }}>
                     {SUIT_ORDER.map((s, i) => (
                         <TrackRow
                             key={s}
@@ -265,7 +264,7 @@ export default function GameScreen() {
                 <SidelineRail laneWidth={laneWidth} sideline={sideline} trackLength={TRACK_LENGTH} />
             </View>
 
-            <View style={{ height: spacing(1) }} />
+            <View style={{ height: spacing(6) }} />
         </View>
     );
 }
@@ -336,14 +335,12 @@ function SidelineRail({
                             transform: [{ perspective: PERSPECTIVE }, { rotateY }],
                         }}
                     >
-                        {/* Back */}
                         <Animated.View
                             style={{ position: "absolute", inset: 0, borderRadius: 8, overflow: "hidden", opacity: backOpacity }}
                         >
                             <Image source={CARD_BACK} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
                         </Animated.View>
 
-                        {/* Front */}
                         <Animated.View
                             style={{
                                 position: "absolute", inset: 0, borderRadius: 8, overflow: "hidden",
@@ -381,7 +378,7 @@ function TrackRow({
 
     return (
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing(2), height: TRACK_HEIGHT }}>
-            <Text style={{ fontSize: 24, width: 24, textAlign: "center", color: symbolColor }}>{symbol}</Text>
+            <Text style={{ fontSize: 21, width: 24, textAlign: "center", color: symbolColor }}>{symbol}</Text>
             <View
                 style={{
                     flex: 1, height: TRACK_HEIGHT, backgroundColor: "rgba(255,255,255,0.12)",
