@@ -72,7 +72,7 @@ export default function LobbyScreen() {
                 <TinyIconButton label="📜" onPress={showRules} />
             </View>
 
-            <Text style={{ color: palette.text, fontSize: 28, fontWeight: "800", marginBottom: spacing(1) }}>
+            <Text style={{ color: palette.text, fontSize: 28, fontWeight: "800", marginBottom: spacing(1), marginTop: spacing(2) }}>
                 Player Lobby
             </Text>
             <Text style={{ color: palette.muted, marginBottom: spacing(3) }}>
@@ -117,7 +117,7 @@ export default function LobbyScreen() {
                 )}
             />
 
-            <View style={{ gap: spacing(2), marginBottom: spacing(2) }}>
+            <View style={{ gap: spacing(2), marginBottom: spacing(4) }}>
                 <Button
                     title="Continue"
                     onPress={() => {
@@ -139,7 +139,7 @@ function TinyIconButton({ label, onPress }: { label: string; onPress: () => void
             style={{
                 width: 36, height: 36, borderRadius: 18,
                 backgroundColor: "rgba(255,255,255,0.12)",
-                alignItems: "center", justifyContent: "center", marginTop: 15,
+                alignItems: "center", justifyContent: "center", marginTop: 25,
             }}
             hitSlop={10}
         >

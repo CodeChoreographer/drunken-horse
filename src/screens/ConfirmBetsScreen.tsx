@@ -59,7 +59,7 @@ export default function ConfirmBetsScreen() {
                 }}
             />
 
-            <View style={{ marginTop: "auto", alignItems: "center", gap: spacing(2), paddingBottom: spacing(2) }}>
+            <View style={{ marginTop: "auto", alignItems: "center", gap: spacing(2), paddingBottom: spacing(4) }}>
                 <View style={{ width: "100%" }}>
                     <Button
                         title="Start Game"
