@@ -41,16 +41,15 @@ export default function WinnerScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: palette.background, padding: spacing(3) }}>
             <ScrollView contentContainerStyle={{ paddingBottom: spacing(3) }}>
-                {/* Header / Banner */}
                 <Card
                     style={{
                         backgroundColor: palette.primary,
                         alignItems: "center",
                         paddingVertical: spacing(3),
                         marginBottom: spacing(3),
+                        marginTop: spacing(1)
                     }}
                 >
-                    {/* Siegersymbol */}
                     <Text style={{ fontSize: 56, lineHeight: 56, color: SUIT_COLOR[winningSuit], marginBottom: spacing(2) }}>
                         {SUIT_SYMBOL[winningSuit]}
                     </Text>
@@ -59,11 +58,10 @@ export default function WinnerScreen() {
                         Congratulations!
                     </Text>
                     <Text style={{ fontSize: 16, fontWeight: "700", color: "#fff", opacity: 0.9 }}>
-                        Winning Suit: {suitLabel(winningSuit)}
+                        Winnerhorse: {SUIT_SYMBOL[winningSuit]} {suitLabel(winningSuit)} {SUIT_SYMBOL[winningSuit]}
                     </Text>
                 </Card>
 
-                {/* Winners */}
                 <Card style={{ marginBottom: spacing(2) }}>
                     <Text style={{ fontWeight: "700", color: palette.text, marginBottom: spacing(1) }}>Winners</Text>
                     {winners.length === 0 ? (
@@ -79,7 +77,6 @@ export default function WinnerScreen() {
                     )}
                 </Card>
 
-                {/* Losers */}
                 <Card>
                     <Text style={{ fontWeight: "700", color: palette.text, marginBottom: spacing(1) }}>Losers</Text>
                     {losers.length === 0 ? (
@@ -96,12 +93,10 @@ export default function WinnerScreen() {
                 </Card>
             </ScrollView>
 
-            {/* Bottom Actions */}
-            <View style={{ gap: spacing(2) }}>
+            <View style={{ gap: spacing(2), marginBottom: spacing(2) }}>
                 <Button
                     title="New round"
                     onPress={() => {
-                        // gleiche Spieler & Bets erneut spielen
                         nav.replace("Game", { players, bets });
                     }}
                 />

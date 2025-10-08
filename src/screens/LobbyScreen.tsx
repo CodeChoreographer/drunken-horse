@@ -117,7 +117,7 @@ export default function LobbyScreen() {
                 )}
             />
 
-            <View style={{ gap: spacing(2) }}>
+            <View style={{ gap: spacing(2), marginBottom: spacing(2) }}>
                 <Button
                     title="Continue"
                     onPress={() => {
@@ -126,7 +126,7 @@ export default function LobbyScreen() {
                     }}
                     disabled={!canContinue}
                 />
-                <Button title="Back" variant="secondary" onPress={() => nav.goBack()} />
+                <Button title="Back" variant="secondary" onPress={() => nav.navigate("Welcome")} />
             </View>
         </View>
     );
