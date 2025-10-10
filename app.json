@@ -5,6 +5,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/DrunkenHorse_Icon.png",
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/DrunkenHorse_Icon_APP.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
