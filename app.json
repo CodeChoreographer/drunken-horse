@@ -8,27 +8,34 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/DrunkenHorse_Icon_APP.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/DrunkenHorse_Logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/DrunkenHorse_Icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.drunkenhorse"
-    },
-    "web": {
-      "favicon": "./assets/DrunkenHorse_Icon.png"
+        "userInterfaceStyle": "light",
+        "newArchEnabled": true,
+        "splash": {
+          "image": "./assets/DrunkenHorse_Logo.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        },
+        "ios": {
+          "supportsTablet": true
+        },
+        "android": {
+          "adaptiveIcon": {
+            "foregroundImage": "./assets/DrunkenHorse_Icon.png",
+            "backgroundColor": "#ffffff"
+          },
+          "edgeToEdgeEnabled": true,
+          "predictiveBackGestureEnabled": false,
+          "package": "com.codechoreographer.drunkenhorse"
+        },
+        "web": {
+          "favicon": "./assets/DrunkenHorse_Icon.png"
+        },
+        "extra": {
+          "eas": {
+            "projectId": "c9afa569-09d1-4310-af82-6098884a05f9"
+          }
+        }
+      }
     },
     "extra": {
       "eas": {
