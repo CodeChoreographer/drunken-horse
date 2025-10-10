@@ -27,8 +27,8 @@ const appTheme: Theme = {
 
 async function preloadAppAssets() {
     const assets = [
-        require("./assets/icon.png"),
-        require("./assets/adaptive-icon.png"),
+        require("./assets/DrunkenHorse_Icon_APP.png"),
+        require("./assets/DrunkenHorse_Icon.png"),
         require("./assets/DrunkenHorse_Logo.png"),
         // 🔊 Audio
         require("./assets/audio/Race_loop.mp3"),
