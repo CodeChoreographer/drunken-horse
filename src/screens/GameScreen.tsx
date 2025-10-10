@@ -8,27 +8,33 @@ import {
     LayoutChangeEvent,
     Pressable,
     ImageSourcePropType,
+    AppState,
 } from "react-native";
 import { Accelerometer } from "expo-sensors";
-import { useRoute, useNavigation } from "@react-navigation/native";
+import { useRoute, useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import type { Player, Bet, Suit } from "../types/game";
 import { palette, spacing } from "../theme/theme";
 import Button from "../components/ui/Button";
 import rules from "../data/rules_drunken_horse.json";
-// für lokales Deck
 import { generateDeck } from "../types/cards";
 import { shuffle } from "../utils/shuffle";
 import { getImageByCode } from "../assets/cardImages";
+import { useAudioPlayer, setAudioModeAsync } from "expo-audio";
 
 // Suits
 const SUIT_ORDER: Suit[] = ["HEARTS", "DIAMONDS", "CLUBS", "SPADES"];
 const SUIT_SYMBOL: Record<Suit, string> = { HEARTS: "♥", DIAMONDS: "♦", CLUBS: "♣", SPADES: "♠" };
-const SUIT_COLOR: Record<Suit, string> = { HEARTS: "#E53935", DIAMONDS: "#E53935", CLUBS: "#000000", SPADES: "#000000" };
+const SUIT_COLOR: Record<Suit, string> = {
+    HEARTS: "#E53935",
+    DIAMONDS: "#E53935",
+    CLUBS: "#000000",
+    SPADES: "#000000",
+};
 
 // Rennen / Layout
-const TRACK_LENGTH = 8;                 // 8 Felder ⇒ 7 Zwischenkarten
+const TRACK_LENGTH = 8;
 const SIDELINE_COUNT = TRACK_LENGTH - 1;
 const TRACK_HEIGHT = 28;
 const MARKER_SIZE = 30;
@@ -37,17 +43,23 @@ const RAIL_HEIGHT = 84;
 const TOP_CARD_W = 140;
 const TOP_CARD_H = 196;
 
-// Shake Einstellungen
+// Shake
 const SHAKE_THRESHOLD_G = 3.4;
 const SHAKE_COOLDOWN_MS = 1000;
 
 const CARD_BACK = require("../../assets/card-back-orange.png");
+const GAME_MUSIC = require("../../assets/audio/Race_loop.mp3");
 
 // Bildquellen vereinheitlichen (API-URI oder lokales require)
 type DrawnCard = { suit: Suit; imageSource: ImageSourcePropType };
-type SideCard  = { suit: Suit; rank: string; imageSource: ImageSourcePropType; faceUp: boolean; flip: Animated.Value };
+type SideCard = {
+    suit: Suit;
+    rank: string;
+    imageSource: ImageSourcePropType;
+    faceUp: boolean;
+    flip: Animated.Value;
+};
 
-// Hilfsfunktion: lokales Bild aus Suit+Rank (A,2..K)
 const suitShort: Record<Suit, "S" | "H" | "D" | "C"> = {
     SPADES: "S",
     HEARTS: "H",
@@ -61,16 +73,73 @@ export default function GameScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const route = useRoute();
     const { players, bets } = route.params as { players: Player[]; bets: Bet[] };
+    const player = useAudioPlayer(GAME_MUSIC);
+
+    // Start-Sperre für Button & Shake
+    const [introLock, setIntroLock] = useState(true);
+    useFocusEffect(
+        useCallback(() => {
+            setIntroLock(true);
+            const t = setTimeout(() => setIntroLock(false), 7500);
+            return () => clearTimeout(t);
+        }, [])
+    );
+
+    const stopMusic = useCallback(() => {
+        try { player.pause(); } catch {}
+        try { player.seekTo(0); } catch {}
+        try { player.remove(); } catch {}
+    }, [player]);
+
+    // 🔊 Start/Stop an Screen-Fokus koppeln
+    useFocusEffect(
+        useCallback(() => {
+            (async () => {
+                try {
+                    // Sicherheitsnetz: vorher sicher stoppen, falls ein alter Player hängt
+                    stopMusic();
+                    await setAudioModeAsync({ playsInSilentMode: true });
+                    player.loop = true;
+                    player.seekTo(0);
+                    await player.play();
+                } catch (e) {
+                    console.warn("Game music error:", e);
+                }
+            })();
+
+            // Cleanup beim Verlassen dieses Screens
+            return () => {
+                stopMusic();
+            };
+        }, [player, stopMusic])
+    );
+
+    // 🔊 Zusätzlich: Navigation-Events + AppState beobachten
+    useEffect(() => {
+        const unsubBlur = navigation.addListener("blur", stopMusic);
+        const unsubBeforeRemove = navigation.addListener("beforeRemove", stopMusic);
+        const appSub = AppState.addEventListener("change", (s) => {
+            if (s !== "active") stopMusic();
+        });
+        return () => {
+            unsubBlur();
+            unsubBeforeRemove();
+            appSub.remove();
+        };
+    }, [navigation, stopMusic]);
 
     // Modus/Deck-Verwaltung
     const [mode, setMode] = useState<"api" | "local">("api");
-    const [deckId, setDeckId] = useState<string | null>(null);              // nur für API-Modus
-    const [localDeck, setLocalDeck] = useState<{ suit: Suit; rank: string }[]>([]); // lokales Deck
+    const [deckId, setDeckId] = useState<string | null>(null);
+    const [localDeck, setLocalDeck] = useState<{ suit: Suit; rank: string }[]>([]);
     const [localIdx, setLocalIdx] = useState(0);
 
     // Rennzustand
     const [positions, setPositions] = useState<Record<Suit, number>>({
-        HEARTS: 0, DIAMONDS: 0, CLUBS: 0, SPADES: 0,
+        HEARTS: 0,
+        DIAMONDS: 0,
+        CLUBS: 0,
+        SPADES: 0,
     });
     const markerProg = useRef<Record<Suit, Animated.Value>>({
         HEARTS: new Animated.Value(0),
@@ -94,18 +163,23 @@ export default function GameScreen() {
     // Deck initialisieren + Sideline laden (API → Fallback lokal)
     const initDeckWithSideline = useCallback(async () => {
         try {
-            // ONLINE: frisches API-Deck + 7 Karten für die Sideline
-            const newDeckRes = await fetch("https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1");
+            const newDeckRes = await fetch(
+                "https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1"
+            );
             const newDeck = await newDeckRes.json();
             const id = newDeck.deck_id as string;
 
-            const drawRes = await fetch(`https://deckofcardsapi.com/api/deck/${id}/draw/?count=${SIDELINE_COUNT}`);
+            const drawRes = await fetch(
+                `https://deckofcardsapi.com/api/deck/${id}/draw/?count=${SIDELINE_COUNT}`
+            );
             const drawJson = await drawRes.json();
             let cards = drawJson.cards;
 
             if (!cards?.length || cards.length < SIDELINE_COUNT) {
                 await fetch(`https://deckofcardsapi.com/api/deck/${id}/shuffle/`);
-                const drawRes2 = await fetch(`https://deckofcardsapi.com/api/deck/${id}/draw/?count=${SIDELINE_COUNT}`);
+                const drawRes2 = await fetch(
+                    `https://deckofcardsapi.com/api/deck/${id}/draw/?count=${SIDELINE_COUNT}`
+                );
                 cards = (await drawRes2.json()).cards;
             }
 
@@ -122,14 +196,12 @@ export default function GameScreen() {
                 };
             });
 
-
             setDeckId(id);
             setMode("api");
             setSideline(side);
             setLocalDeck([]);
             setLocalIdx(0);
         } catch {
-            // OFFLINE: lokales Deck + lokale Bilder
             const deck = shuffle(generateDeck());
             const sideLocal: SideCard[] = deck.slice(0, SIDELINE_COUNT).map((c) => ({
                 suit: c.suit,
@@ -148,21 +220,7 @@ export default function GameScreen() {
     }, []);
 
     useEffect(() => {
-        (async () => {
-            try { await initDeckWithSideline(); }
-            catch {
-                // wenn hier etwas schiefgeht, fallbacken wir nochmal sicherheitshalber lokal
-                const deck = shuffle(generateDeck());
-                const sideLocal: SideCard[] = deck.slice(0, SIDELINE_COUNT).map((c) => ({
-                    suit: c.suit, rank: c.rank, imageSource: localImageFor(c.suit, c.rank), faceUp: false, flip: new Animated.Value(0),
-                }));
-                setDeckId(null);
-                setMode("local");
-                setSideline(sideLocal);
-                setLocalDeck(deck.slice(SIDELINE_COUNT));
-                setLocalIdx(0);
-            }
-        })();
+        initDeckWithSideline();
     }, [initDeckWithSideline]);
 
     // Marker sanft bewegen
@@ -171,15 +229,8 @@ export default function GameScreen() {
         Animated.timing(markerProg[suit], { toValue: prog, duration: 250, useNativeDriver: false }).start();
     };
 
-    const isColumnReady = (c: number, pos: Record<Suit, number>) => SUIT_ORDER.every((s) => (pos[s] ?? 0) >= c);
-
-    const resetRace = useCallback(async () => {
-        setPositions({ HEARTS: 0, DIAMONDS: 0, CLUBS: 0, SPADES: 0 });
-        SUIT_ORDER.forEach((s) => markerProg[s].setValue(0));
-        setLastCard(null);
-        setFinished(false);
-        await initDeckWithSideline();
-    }, [initDeckWithSideline, markerProg]);
+    const isColumnReady = (c: number, pos: Record<Suit, number>) =>
+        SUIT_ORDER.every((s) => (pos[s] ?? 0) >= c);
 
     const flipAndRetreat = useCallback((idx: number, sc?: SideCard) => {
         if (!sc) return;
@@ -199,6 +250,15 @@ export default function GameScreen() {
 
     const [isDrawing, setIsDrawing] = useState(false);
     const [finished, setFinished] = useState(false);
+    const [winnerSuit, setWinnerSuit] = useState<Suit | null>(null);
+
+    // Navigation nach Spielende – vorher Musik stoppen
+    useEffect(() => {
+        if (finished && winnerSuit) {
+            stopMusic();
+            navigation.navigate("Winner", { players, bets, winningSuit: winnerSuit });
+        }
+    }, [finished, winnerSuit, navigation, players, bets, stopMusic]);
 
     // Karte ziehen (Button/Shake) – mit Auto-Failover: API → lokal
     const drawCard = useCallback(async () => {
@@ -206,16 +266,8 @@ export default function GameScreen() {
         setIsDrawing(true);
         try {
             if (mode === "api" && deckId) {
-                // ONLINE: API ziehen
-                const j = await (async () => {
-                    const r = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=1`);
-                    const jj = await r.json();
-                    if (jj.success && jj.cards?.length) return jj;
-                    await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/shuffle/`);
-                    const r2 = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=1`);
-                    return await r2.json();
-                })();
-
+                const r = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=1`);
+                const j = await r.json();
                 const card = j.cards?.[0];
                 const suit = (card?.suit as string | undefined)?.toUpperCase() as Suit | undefined;
                 if (!suit) return;
@@ -223,7 +275,6 @@ export default function GameScreen() {
                 setLastCard({ suit, imageSource: { uri: card.image as string } });
                 fadeInCard();
 
-                // Fortschritt
                 setPositions((cur) => {
                     const nextVal = Math.min((cur[suit] ?? 0) + 1, TRACK_LENGTH);
                     const nextPositions: Record<Suit, number> = { ...cur, [suit]: nextVal };
@@ -238,16 +289,13 @@ export default function GameScreen() {
                     if (readyIdx >= 0) flipAndRetreat(readyIdx, sideline[readyIdx]);
 
                     const winner = (Object.keys(nextPositions) as Suit[]).find((s) => nextPositions[s] >= TRACK_LENGTH);
-                    if (winner) {
-                        setFinished(true);
-                        navigation.navigate("Winner", { players, bets, winningSuit: winner });
-                    }
+                    if (winner) { setFinished(true); setWinnerSuit(winner); }
                     return nextPositions;
                 });
             } else {
                 // OFFLINE: lokal ziehen
                 const c = localDeck[localIdx];
-                if (!c) return; // Deckende (kommt praktisch nicht vor)
+                if (!c) return; // Deckende (praktisch selten)
                 setLastCard({ suit: c.suit, imageSource: localImageFor(c.suit, c.rank) });
                 fadeInCard();
 
@@ -264,46 +312,18 @@ export default function GameScreen() {
                     if (readyIdx >= 0) flipAndRetreat(readyIdx, sideline[readyIdx]);
 
                     const winner = (Object.keys(nextPositions) as Suit[]).find((s) => nextPositions[s] >= TRACK_LENGTH);
-                    if (winner) {
-                        setFinished(true);
-                        navigation.navigate("Winner", { players, bets, winningSuit: winner });
-                    }
+                    if (winner) { setFinished(true); setWinnerSuit(winner); }
                     return nextPositions;
                 });
 
                 setLocalIdx((i) => i + 1);
             }
-        } catch {
-            // ➜ Mitten im Spiel Netz weg oder API down → sofort auf lokal umschalten
-            const deck = shuffle(generateDeck());
-
-            // Sideline-Frontbilder auf lokale Assets umstellen (Suit passt optisch)
-            setSideline((prev) =>
-                prev.map((sc) => ({ ...sc, imageSource: localImageFor(sc.suit, sc.rank ?? "A") }))
-            );
-
-            setMode("local");
-            setDeckId(null);
-            setLocalDeck(deck);
-            setLocalIdx(0);
-
-            // direkt eine lokale Karte ziehen, damit der Flow nicht abreisst
-            const c = deck[0];
-            setLastCard({ suit: c.suit, imageSource: localImageFor(c.suit, c.rank) });
-            fadeInCard();
-            setPositions((cur) => {
-                const nextVal = Math.min((cur[c.suit] ?? 0) + 1, TRACK_LENGTH);
-                const next = { ...cur, [c.suit]: nextVal };
-                animateMarkerTo(c.suit, nextVal);
-                return next;
-            });
-            setLocalIdx(1);
         } finally {
             setIsDrawing(false);
         }
-    }, [mode, deckId, isDrawing, finished, localDeck, localIdx, sideline, navigation, players, bets, fadeInCard, flipAndRetreat]);
+    }, [mode, deckId, isDrawing, finished, localDeck, localIdx, sideline, fadeInCard, flipAndRetreat]);
 
-    // Shake-to-Draw
+    // Shake-to-Draw (respektiert introLock)
     const lastShake = useRef(0);
     useEffect(() => {
         let sub: any;
@@ -311,27 +331,41 @@ export default function GameScreen() {
             try {
                 await Accelerometer.setUpdateInterval(100);
                 sub = Accelerometer.addListener(({ x, y, z }) => {
+                    if (introLock) return; // während der ersten 7s blockieren
                     const g = Math.sqrt(x * x + y * y + z * z);
                     const now = Date.now();
                     if (g > SHAKE_THRESHOLD_G && now - lastShake.current > SHAKE_COOLDOWN_MS) {
-                        lastShake.current = now; drawCard();
+                        lastShake.current = now;
+                        drawCard();
                     }
                 });
             } catch {}
         })();
         return () => sub?.remove();
-    }, [drawCard]);
+    }, [drawCard, introLock]);
 
     const showRules = () => {
         const msg = rules.map((r: any) => `${r.icon ? r.icon + "  " : ""}${r.text}`).join("\n\n");
         Alert.alert("Rules", msg, [{ text: "OK" }], { cancelable: true });
     };
     const confirmBackHome = () => {
-        Alert.alert("Back to lobby?", "", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Yes", onPress: () => navigation.navigate("Lobby") },
-        ]);
+        Alert.alert(
+            "Back to lobby?",
+            "",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Yes",
+                    onPress: () => {
+                        stopMusic();
+                        navigation.navigate("Lobby");
+                    },
+                },
+            ],
+            { cancelable: true }
+        );
     };
+
 
     return (
         <View style={{ flex: 1, backgroundColor: palette.background, padding: spacing(3) }}>
@@ -357,7 +391,11 @@ export default function GameScreen() {
                 </View>
 
                 <View style={{ width: "100%" }}>
-                    <Button title={`Draw Card ${mode === "api" ? "🌐" : "📴"}`} onPress={drawCard} disabled={isDrawing || finished} />
+                    <Button
+                        title={introLock ? "Get ready…" : `Draw Card ${mode === "api" ? "🌐" : "📴"}`}
+                        onPress={drawCard}
+                        disabled={introLock || isDrawing || finished}
+                    />
                 </View>
             </View>
 

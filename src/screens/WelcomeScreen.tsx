@@ -1,4 +1,4 @@
-import { View, Text, Alert, Image, TouchableOpacity } from "react-native";
+import {Platform, View, Text, Alert, Image, TouchableOpacity} from "react-native";
 import { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -31,15 +31,19 @@ export default function WelcomeScreen() {
     };
 
     useEffect(() => {
-        const t = setTimeout(() => {
-            Alert.alert(
-                "Drink responsibly",
-                "Please enjoy Drunken Horse responsibly. By continuing, you confirm you are of legal drinking age in your country.",
-                [{ text: "I agree", onPress: () => setAcknowledged(true) }],
-                { cancelable: false }
-            );
-        }, 0);
-        return () => clearTimeout(t);
+        // Wenn Web: direkt freischalten, kein Alert
+        if (Platform.OS === "web") {
+            setAcknowledged(true);
+            return;
+        }
+
+        // Auf Mobile normal mit Alert
+        Alert.alert(
+            "Drink responsibly",
+            "Please enjoy Drunken Horse responsibly. By continuing, you confirm you are of legal drinking age in your country.",
+            [{ text: "I agree", onPress: () => setAcknowledged(true) }],
+            { cancelable: false }
+        );
     }, []);
 
     const showRules = () => {
